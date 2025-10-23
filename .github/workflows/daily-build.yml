@@ -1,0 +1,60 @@
+name: Daily qcow2 build and release
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # Daily at 02:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-qcow2-build
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libguestfs-tools qemu-utils wget curl gnupg
+          echo "LIBGUESTFS_BACKEND=direct" | sudo tee -a /etc/environment
+
+      - name: Build qcow2 image
+        env:
+          LIBGUESTFS_BACKEND: direct
+          IMAGE_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          sudo -E bash ./builder.sh
+          ls -lh debian-13-generic-amd64-*.qcow2
+
+      - name: Prepare metadata and checksums
+        id: meta
+        run: |
+          DATE=$(date -u +'%Y%m%d')
+          NAME_DATE=$(date -u +'%Y-%m-%d')
+          echo "TAG=daily-${DATE}" >> "$GITHUB_OUTPUT"
+          echo "NAME=Daily build ${NAME_DATE}" >> "$GITHUB_OUTPUT"
+          echo "FILE=debian-13-generic-amd64-NEXT.qcow2" >> "$GITHUB_OUTPUT"
+          sha256sum debian-13-generic-amd64-NEXT.qcow2 | tee SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.meta.outputs.TAG }}
+          name: ${{ steps.meta.outputs.NAME }}
+          body: |
+            Automated daily build. See SHA256SUMS.txt for checksum.
+          artifacts: debian-13-generic-amd64-NEXT.qcow2,SHA256SUMS.txt
+          allowUpdates: true
+          replacesArtifacts: true
+          artifactErrorsFailBuild: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
