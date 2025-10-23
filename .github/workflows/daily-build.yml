@@ -35,15 +35,7 @@ jobs:
           # Fix permissions for libguestfs temporary directories
           sudo mkdir -p /var/tmp
           sudo chmod 1777 /var/tmp
-          # Create wrapper script to add --network option to virt-customize
-          cat > virt-customize-wrapper.sh << 'EOF'
-          #!/bin/bash
-          # Replace virt-customize calls with --network option to avoid passt issues
-          sed -i 's/virt-customize -a/virt-customize --network -a/g' builder.sh
-          EOF
-          chmod +x virt-customize-wrapper.sh
-          bash virt-customize-wrapper.sh
-          # Run build script
+          # Run build script (auto-detects GitHub Actions and adds --network flag)
           sudo -E bash ./builder.sh
           ls -lh debian-13-generic-amd64-*.qcow2
 
