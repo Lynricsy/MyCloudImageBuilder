@@ -66,15 +66,16 @@ echo ""
 
 # 注意：在 virt-customize 环境中，需要显式设置 HOME=/root 来确保
 # Zsh 和 Zim Framework 等工具正确安装到 /root 目录
+
 # 在 GitHub Actions 中添加 --network 参数以避免 passt 权限问题
-VIRT_NETWORK_OPT=""
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    VIRT_NETWORK_OPT="--network"
     log_info "🔧 检测到 GitHub Actions 环境，禁用 guest 网络以避免权限问题"
+    VIRT_CUSTOMIZE_CMD="virt-customize --network -a debian-13-generic-amd64.qcow2"
+else
+    VIRT_CUSTOMIZE_CMD="virt-customize -a debian-13-generic-amd64.qcow2"
 fi
 
-virt-customize -a debian-13-generic-amd64.qcow2 \
-  ${VIRT_NETWORK_OPT} \
+${VIRT_CUSTOMIZE_CMD} \
   --smp 2 --verbose \
   --timezone "Asia/Hong_Kong" \
   --append-line "/etc/default/grub:# disables OS prober to avoid loopback detection which breaks booting" \
